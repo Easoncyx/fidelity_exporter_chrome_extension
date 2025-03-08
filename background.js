@@ -1,24 +1,24 @@
-chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
-    if (message.action === 'export') {
-        const csv = convertToCSV(message.data); // Convert your data to a CSV string
-        const date = new Date().toISOString().split('T')[0]; // e.g., "2023-10-25"
-        const dataUrl = 'data:text/csv;charset=utf-8,' + encodeURIComponent(csv);
-        chrome.downloads.download({
-            url: dataUrl,
-            filename: `fidelity_positions_${date}.csv` // Dynamic filename with date
-        }, () => {
-            sendResponse({ status: 'done' });
-        });
-        return true; // Keep the message channel open for the async response
-    }
-});
-
-function convertToCSV(data) {
-    if (data.length === 0) return '';
-    const headers = Object.keys(data[0]);
+// Convert data to CSV format
+function convertToCSV(headers, data) {
     const csvRows = [
-        headers.join(','), // Header row
-        ...data.map(row => headers.map(header => `"${(row[header] || '').replace(/"/g, '""')}"`).join(','))
+        headers.map(header => `"${header}"`).join(','), // Header row
+        ...data.map(row => row.map(value => `"${(value || '').replace(/"/g, '""')}"`).join(','))
     ];
     return csvRows.join('\n');
 }
+
+// Listen for messages from content script
+chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
+    if (message.action === 'export') {
+        const csv = convertToCSV(message.headers, message.data);
+        const date = new Date().toISOString().split('T')[0];
+        const dataUrl = 'data:text/csv;charset=utf-8,' + encodeURIComponent(csv);
+        chrome.downloads.download({
+            url: dataUrl,
+            filename: `positions_${date}.csv`
+        }, () => {
+            sendResponse({ status: 'done' });
+        });
+        return true; // Keep the message channel open for async response
+    }
+});
