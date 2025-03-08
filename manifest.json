@@ -1,0 +1,16 @@
+{
+    "manifest_version": 3,
+    "name": "Fidelity Data Exporter",
+    "version": "1.0",
+    "description": "Exports data from Fidelity position page",
+    "permissions": ["downloads"],
+    "background": {
+        "service_worker": "background.js"
+    },
+    "content_scripts": [
+        {
+            "matches": ["https://*.fidelity.com/*"],
+            "js": ["content.js"]
+        }
+    ]
+}
