@@ -1,15 +1,15 @@
 {
     "manifest_version": 3,
-    "name": "Fidelity Data Exporter",
+    "name": "Fidelity Positions Exporter",
     "version": "1.0",
-    "description": "Exports data from Fidelity position page",
-    "permissions": ["downloads"],
+    "description": "Exports Fidelity positions data to CSV automatically once per day or manually.",
+    "permissions": ["downloads", "tabs", "storage"],
     "background": {
         "service_worker": "background.js"
     },
     "content_scripts": [
         {
-            "matches": ["https://*.fidelity.com/*"],
+            "matches": ["https://digital.fidelity.com/ftgw/digital/portfolio/positions"],
             "js": ["content.js"]
         }
     ]

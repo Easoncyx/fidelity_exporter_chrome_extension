@@ -1,4 +1,40 @@
-// Wait for the grid to load
+// Listen for automatic export trigger from background script
+chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
+    console.log('Content script received message:', message);
+    if (message.action === 'autoExport') {
+        console.log('Executing autoExport action');
+        
+        // Check if grid is loaded before extracting
+        const grid = document.getElementById('posweb-grid');
+        if (!grid || !grid.querySelector('[role="row"]')) {
+            console.log('Grid not yet loaded, setting up wait interval for autoExport');
+            // Wait for grid to load before extracting
+            const waitForGrid = setInterval(() => {
+                const grid = document.getElementById('posweb-grid');
+                if (grid && grid.querySelector('[role="row"]')) {
+                    clearInterval(waitForGrid);
+                    console.log('Grid now loaded, proceeding with extraction');
+                    const { headers, data } = extractData();
+                    console.log('Extracted data:', { headerCount: headers.length, rowCount: data.length });
+                    chrome.runtime.sendMessage({ action: 'export', headers, data }, response => {
+                        console.log('Export response:', response);
+                    });
+                }
+            }, 1000);
+        } else {
+            // Grid is already loaded, extract immediately
+            const { headers, data } = extractData();
+            console.log('Extracted data:', { headerCount: headers.length, rowCount: data.length });
+            chrome.runtime.sendMessage({ action: 'export', headers, data }, response => {
+                console.log('Export response:', response);
+            });
+        }
+    }
+    return true; // Keep the message channel open for async response
+});
+
+
+// Wait for the positions grid to load, then inject the manual export button
 const checkData = setInterval(() => {
     const grid = document.getElementById('posweb-grid');
     if (grid && grid.querySelector('[role="row"]')) {
@@ -63,7 +99,6 @@ function extractData() {
         
         // Proceed with extraction for account and position rows
         const rowId = leftRow.getAttribute('row-id');
-        console.log('rowId:', rowId);
         const symbol = extractSymbol(leftRow);
         const centerRow = centerRowsMap[rowId];
 
