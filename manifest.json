@@ -1,9 +1,9 @@
 {
     "manifest_version": 3,
     "name": "Fidelity Positions Exporter",
-    "version": "1.0",
-    "description": "Exports Fidelity positions data to CSV automatically once per day or manually.",
-    "permissions": ["downloads", "tabs", "storage"],
+    "version": "1.1",
+    "description": "Adds a Quick Download button to export Fidelity positions data to CSV.",
+    "permissions": [],
     "background": {
         "service_worker": "background.js"
     },
