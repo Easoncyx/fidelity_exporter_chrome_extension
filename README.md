@@ -5,7 +5,8 @@ This Chrome extension exports your Fidelity positions data to a CSV file. It aut
 ## Features
 
 - **Automatic Daily Export**: Exports your positions data to a CSV file once per day, triggered when you first visit the Fidelity positions page (`https://digital.fidelity.com/ftgw/digital/portfolio/positions`) after logging in.
-- **Manual Export**: Adds an "Export Data" button to the positions page for on-demand exports.
+- **Manual Export**: Adds an "Export Data" button to the positions page for on-demand exports (scrapes current view).
+- **Quick Download**: Adds a "Quick Download" button that automates Fidelity's native download: selects All Accounts → Positions tab → My View → triggers CSV download.
 - **Data Cleaning**: Excludes "Pending Activity" and "Account Total" rows, removes commas from quantities, and extracts stock symbols cleanly.
 
 ## Installation
@@ -30,6 +31,16 @@ This Chrome extension exports your Fidelity positions data to a CSV file. It aut
 - On the Fidelity positions page, look for the "Export Data" button in the bottom right corner.
 - Click the button to manually export your positions data to a CSV file at any time.
 - The button text changes to "Exporting..." during the process and reverts to "Export Data" when complete.
+- This scrapes the currently displayed view.
+
+### Quick Download
+- Click the green "Quick Download" button in the bottom right corner.
+- This automates Fidelity's native download process by:
+  1. Selecting "All Accounts"
+  2. Clicking the "Positions" tab
+  3. Changing the view dropdown to "My View"
+  4. Opening the overflow menu and clicking "Download"
+- Uses Fidelity's own CSV export, which may include different columns than the manual scrape.
 
 ## Permissions
 The extension requires the following permissions:

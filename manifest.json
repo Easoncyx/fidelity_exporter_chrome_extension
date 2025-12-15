@@ -9,7 +9,10 @@
     },
     "content_scripts": [
         {
-            "matches": ["https://digital.fidelity.com/ftgw/digital/portfolio/positions"],
+            "matches": [
+                "https://digital.fidelity.com/ftgw/digital/portfolio/positions",
+                "https://digital.fidelity.com/ftgw/digital/portfolio/summary"
+            ],
             "js": ["content.js"]
         }
     ]
