@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Overview
 
-Chrome extension (Manifest V3) that adds a "Quick Download" button to Fidelity portfolio pages. The button automates Fidelity's native CSV download and auto-uploads the CSV to the portfolio analyzer backend API.
+Chrome extension (Manifest V3) that adds a "Quick Download" button to Fidelity portfolio pages. The button automates Fidelity's native CSV download, auto-uploads the CSV to the portfolio analyzer backend API, and then auto-fetches Robinhood positions (requires MFA push notification approval on phone).
 
 ## Installation
 
@@ -45,15 +45,26 @@ MV3 isolates MAIN world (page JS access) from ISOLATED world (chrome API access)
 
 ### content.js (ISOLATED world)
 - Injects Quick Download button (fixed bottom-right)
-- Click handler flow: arm interceptor → trigger download → wait for CSV capture → relay to background
-- Button state machine: `Downloading...` (green) → `Uploading...` (blue) → `Uploaded! N pos, M accts` (green) or error states
+- Click handler flow: arm interceptor → trigger download → wait for CSV capture → upload to backend → fetch Robinhood
+- Button state machine:
+  ```
+  Downloading... (green #4CAF50)
+    → Uploading... (blue #2196F3)
+      → Fetching Robinhood... (purple #9C27B0)
+        → Done! (green, 4s reset)
+        → Uploaded! (RH failed) (orange #FF9800, 4s reset) — Fidelity OK, Robinhood failed
+      → Upload Failed (red, 4s reset)
+    → Downloaded (no upload) (orange, 3s reset)
+  → Failed - Retry (red, stays)
+  ```
 - `performQuickDownload()` is unchanged from original
+- Robinhood fetch requires MFA push notification — user must approve on phone (up to 150s timeout)
 
 ### background.js (Service Worker)
-- `API_URL` constant at top — change for remote access (e.g., Tailscale URL)
-- Handles `UPLOAD_CSV` messages from content.js
+- `API_BASE` constant at top — change for remote access (e.g., Tailscale URL)
+- Handles `UPLOAD_CSV` messages: POSTs CSV to `/api/v1/snapshots/upload`
+- Handles `FETCH_ROBINHOOD` messages: POSTs to `/api/v1/snapshots/fetch-robinhood` with 150s timeout
 - Builds FormData with filename `Portfolio_Positions_Mon-DD-YYYY.csv`
-- POSTs to `/api/v1/snapshots/upload` (same endpoint as dashboard upload)
 
 ### Target Pages
 - `https://digital.fidelity.com/ftgw/digital/portfolio/positions`
@@ -75,13 +86,19 @@ Uses `MutationObserver` to wait for dynamic menu elements.
 - Same-date snapshots are replaced automatically by the backend
 
 ### Error Handling
-| Failure | User Sees | Download Still Works? |
-|---|---|---|
-| Fidelity UI element not found | "Failed - Retry" (red) | No |
-| Blob not captured (15s timeout) | "Downloaded (no upload)" (orange) | Yes |
-| Backend down / unreachable | "Upload Failed" (red) | Yes |
-| Backend parse error (4xx/5xx) | "Upload Failed" (red) | Yes |
+| Failure | User Sees | Download Still Works? | Fidelity Upload OK? |
+|---|---|---|---|
+| Fidelity UI element not found | "Failed - Retry" (red) | No | No |
+| Blob not captured (15s timeout) | "Downloaded (no upload)" (orange) | Yes | No |
+| Backend down / unreachable (upload) | "Upload Failed" (red) | Yes | No |
+| Backend parse error (4xx/5xx) | "Upload Failed" (red) | Yes | No |
+| RH credentials missing / login failed | "Uploaded! (RH failed)" (orange) | Yes | Yes |
+| RH fetch timeout (150s) | "Uploaded! (RH failed)" (orange) | Yes | Yes |
+| Backend unreachable during RH fetch | "Uploaded! (RH failed)" (orange) | Yes | Yes |
+
+Fidelity upload is committed before RH fetch starts. RH failure never affects the Fidelity snapshot.
 
 ### Configuration
-- `API_URL` in `background.js`: Set to backend URL (default: `http://localhost:8000/api/v1/snapshots/upload`)
+- `API_BASE` in `background.js`: Set to backend base URL (default: `http://localhost:8000/api/v1/snapshots`)
 - `host_permissions` in `manifest.json`: Must match the API URL origin
+- Robinhood fetch requires `ROBINHOOD_USERNAME` and `ROBINHOOD_PASSWORD` in backend `.env`

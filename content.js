@@ -102,6 +102,14 @@ function injectButton() {
         // Stage 3: Uploading (blue)
         setButtonState(downloadButton, 'Uploading...', '#2196F3');
 
+        // Check if extension context is still valid (invalidated after extension reload)
+        if (!chrome.runtime?.id) {
+            console.error('[Fidelity Ext] Extension context invalidated — reload the page');
+            setButtonState(downloadButton, 'Reload Page', '#f44336');
+            downloadButton.disabled = false;
+            return;
+        }
+
         try {
             const response = await chrome.runtime.sendMessage({
                 type: 'UPLOAD_CSV',
@@ -109,20 +117,52 @@ function injectButton() {
             });
 
             if (response?.success) {
-                const snap = response.snapshot;
-                setButtonState(
-                    downloadButton,
-                    `Uploaded! ${snap.positions_count} pos, ${snap.accounts_count} accts`,
-                    '#4CAF50'
-                );
-                console.log('[Fidelity Ext] Upload successful:', snap);
+                console.log('[Fidelity Ext] Upload successful:', response.snapshot);
             } else {
                 console.error('[Fidelity Ext] Upload failed:', response?.error);
                 setButtonState(downloadButton, 'Upload Failed', '#f44336');
+                setTimeout(() => {
+                    setButtonState(downloadButton, 'Quick Download', '#4CAF50');
+                    downloadButton.disabled = false;
+                }, 4000);
+                return;
             }
         } catch (err) {
             console.error('[Fidelity Ext] Upload error:', err);
             setButtonState(downloadButton, 'Upload Failed', '#f44336');
+            setTimeout(() => {
+                setButtonState(downloadButton, 'Quick Download', '#4CAF50');
+                downloadButton.disabled = false;
+            }, 4000);
+            return;
+        }
+
+        // Stage 4: Fetching Robinhood (purple) — MFA push notification required
+        setButtonState(downloadButton, 'Fetching Robinhood...', '#9C27B0');
+
+        try {
+            const rhResponse = await chrome.runtime.sendMessage({
+                type: 'FETCH_ROBINHOOD'
+            });
+
+            if (rhResponse?.success) {
+                setButtonState(downloadButton, 'Done!', '#4CAF50');
+                console.log('[Fidelity Ext] Robinhood fetch successful:', rhResponse.snapshot);
+            } else {
+                console.warn('[Fidelity Ext] Robinhood fetch failed:', rhResponse?.error);
+                setButtonState(
+                    downloadButton,
+                    `Uploaded! (RH failed)`,
+                    '#FF9800'
+                );
+            }
+        } catch (err) {
+            console.warn('[Fidelity Ext] Robinhood fetch error:', err);
+            setButtonState(
+                downloadButton,
+                `Uploaded! (RH failed)`,
+                '#FF9800'
+            );
         }
 
         setTimeout(() => {

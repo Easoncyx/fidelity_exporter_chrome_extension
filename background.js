@@ -1,5 +1,5 @@
-// Backend API URL - change this for remote access (e.g., Tailscale)
-const API_URL = 'http://localhost:8000/api/v1/snapshots/upload';
+// Backend API base URL - change this for remote access (e.g., Tailscale)
+const API_BASE = 'http://localhost:8000/api/v1/snapshots';
 
 // Handle messages from content script
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
@@ -8,6 +8,12 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
             .then(result => sendResponse(result))
             .catch(err => sendResponse({ success: false, error: err.message }));
         return true; // Keep message channel open for async response
+    }
+    if (message.type === 'FETCH_ROBINHOOD') {
+        handleFetchRobinhood()
+            .then(result => sendResponse(result))
+            .catch(err => sendResponse({ success: false, error: err.message }));
+        return true;
     }
 });
 
@@ -25,9 +31,10 @@ async function handleUpload(csvText) {
     const formData = new FormData();
     formData.append('file', blob, filename);
 
-    console.log(`[Fidelity Ext] Uploading ${filename} (${csvText.length} bytes) to ${API_URL}`);
+    const uploadUrl = `${API_BASE}/upload`;
+    console.log(`[Fidelity Ext] Uploading ${filename} (${csvText.length} bytes) to ${uploadUrl}`);
 
-    const response = await fetch(API_URL, {
+    const response = await fetch(uploadUrl, {
         method: 'POST',
         body: formData
     });
@@ -48,4 +55,39 @@ async function handleUpload(csvText) {
             date: data.snapshot?.date
         }
     };
+}
+
+// Fetch Robinhood positions via backend API (requires MFA push approval, up to 150s)
+async function handleFetchRobinhood() {
+    const fetchUrl = `${API_BASE}/fetch-robinhood`;
+    console.log(`[Fidelity Ext] Fetching Robinhood positions from ${fetchUrl}`);
+
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 150000);
+
+    try {
+        const response = await fetch(fetchUrl, {
+            method: 'POST',
+            signal: controller.signal
+        });
+
+        if (!response.ok) {
+            const text = await response.text();
+            throw new Error(`API error ${response.status}: ${text}`);
+        }
+
+        const data = await response.json();
+        console.log('[Fidelity Ext] Robinhood fetch response:', data);
+
+        return {
+            success: true,
+            snapshot: {
+                positions_count: data.positions_count,
+                accounts_count: data.accounts_count,
+                date: data.snapshot?.date
+            }
+        };
+    } finally {
+        clearTimeout(timeout);
+    }
 }
