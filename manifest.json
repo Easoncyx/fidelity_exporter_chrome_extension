@@ -1,7 +1,7 @@
 {
     "manifest_version": 3,
     "name": "Fidelity Positions Exporter",
-    "version": "1.2",
+    "version": "1.3",
     "description": "Adds a Quick Download button to export Fidelity positions data to CSV and auto-upload to portfolio analyzer.",
     "permissions": [],
     "host_permissions": [
@@ -14,7 +14,8 @@
         {
             "matches": [
                 "https://digital.fidelity.com/ftgw/digital/portfolio/positions",
-                "https://digital.fidelity.com/ftgw/digital/portfolio/summary"
+                "https://digital.fidelity.com/ftgw/digital/portfolio/summary",
+                "https://digital.fidelity.com/ftgw/digital/portfolio/activity"
             ],
             "js": ["interceptor.js"],
             "run_at": "document_start",
@@ -23,7 +24,8 @@
         {
             "matches": [
                 "https://digital.fidelity.com/ftgw/digital/portfolio/positions",
-                "https://digital.fidelity.com/ftgw/digital/portfolio/summary"
+                "https://digital.fidelity.com/ftgw/digital/portfolio/summary",
+                "https://digital.fidelity.com/ftgw/digital/portfolio/activity"
             ],
             "js": ["content.js"]
         }

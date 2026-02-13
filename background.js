@@ -1,5 +1,6 @@
-// Backend API base URL - change this for remote access (e.g., Tailscale)
+// Backend API base URLs - change these for remote access (e.g., Tailscale)
 const API_BASE = 'http://localhost:8000/api/v1/snapshots';
+const ACTIVITY_API_BASE = 'http://localhost:8000/api/v1/activities';
 
 // Handle messages from content script
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
@@ -11,6 +12,18 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     }
     if (message.type === 'FETCH_ROBINHOOD') {
         handleFetchRobinhood()
+            .then(result => sendResponse(result))
+            .catch(err => sendResponse({ success: false, error: err.message }));
+        return true;
+    }
+    if (message.type === 'UPLOAD_ACTIVITY_CSV') {
+        handleActivityUpload(message.csvText)
+            .then(result => sendResponse(result))
+            .catch(err => sendResponse({ success: false, error: err.message }));
+        return true;
+    }
+    if (message.type === 'MOVE_ACTIVITY_DOWNLOAD') {
+        handleMoveActivityDownload()
             .then(result => sendResponse(result))
             .catch(err => sendResponse({ success: false, error: err.message }));
         return true;
@@ -90,4 +103,62 @@ async function handleFetchRobinhood() {
     } finally {
         clearTimeout(timeout);
     }
+}
+
+// Upload activity CSV text to backend API
+async function handleActivityUpload(csvText) {
+    const now = new Date();
+    const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
+                    'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    const month = months[now.getMonth()];
+    const day = String(now.getDate()).padStart(2, '0');
+    const year = now.getFullYear();
+    const filename = `Accounts_History_${month}-${day}-${year}.csv`;
+
+    const blob = new Blob([csvText], { type: 'text/csv' });
+    const formData = new FormData();
+    formData.append('file', blob, filename);
+
+    const uploadUrl = `${ACTIVITY_API_BASE}/upload-fidelity`;
+    console.log(`[Fidelity Ext] Uploading activity ${filename} (${csvText.length} bytes) to ${uploadUrl}`);
+
+    const response = await fetch(uploadUrl, {
+        method: 'POST',
+        body: formData
+    });
+
+    if (!response.ok) {
+        const text = await response.text();
+        throw new Error(`API error ${response.status}: ${text}`);
+    }
+
+    const data = await response.json();
+    console.log('[Fidelity Ext] Activity upload response:', data);
+
+    return {
+        success: true,
+        activity: {
+            new_records: data.new_records,
+            duplicates_skipped: data.duplicates_skipped,
+            total_rows: data.total_rows
+        }
+    };
+}
+
+// Move downloaded activity CSV from portfolio_daily/ to fidelity_activity/{year}/
+async function handleMoveActivityDownload() {
+    const moveUrl = `${ACTIVITY_API_BASE}/move-download`;
+    console.log(`[Fidelity Ext] Moving activity download via ${moveUrl}`);
+
+    const response = await fetch(moveUrl, { method: 'POST' });
+
+    if (!response.ok) {
+        const text = await response.text();
+        throw new Error(`API error ${response.status}: ${text}`);
+    }
+
+    const data = await response.json();
+    console.log('[Fidelity Ext] Move response:', data);
+
+    return { success: true, moved: data.moved };
 }
