@@ -10,6 +10,37 @@ if (isPositionsPage || isSummaryPage) {
     }, 1000);
 }
 
+// Set button style and text
+function setButtonState(button, text, bgColor) {
+    button.textContent = text;
+    button.style.backgroundColor = bgColor;
+}
+
+// Wait for CSV capture from interceptor.js (MAIN world) via postMessage
+function waitForCsvCapture(timeoutMs = 15000) {
+    return new Promise((resolve, reject) => {
+        const handler = (event) => {
+            if (event.source !== window) return;
+            if (event.data?.type === 'FIDELITY_EXT_CSV_CAPTURED') {
+                cleanup();
+                resolve(event.data.csvText);
+            } else if (event.data?.type === 'FIDELITY_EXT_CSV_CAPTURE_FAILED') {
+                cleanup();
+                reject(new Error(`Capture failed: ${event.data.reason}`));
+            }
+        };
+        const timer = setTimeout(() => {
+            cleanup();
+            reject(new Error('CSV capture timeout'));
+        }, timeoutMs);
+        function cleanup() {
+            window.removeEventListener('message', handler);
+            clearTimeout(timer);
+        }
+        window.addEventListener('message', handler);
+    });
+}
+
 // Inject Quick Download button into the page
 function injectButton() {
     // Create container for button
@@ -31,19 +62,73 @@ function injectButton() {
     downloadButton.style.borderRadius = '4px';
     container.appendChild(downloadButton);
 
-    downloadButton.addEventListener('click', () => {
-        downloadButton.textContent = 'Downloading...';
+    downloadButton.addEventListener('click', async () => {
         downloadButton.disabled = true;
-        performQuickDownload()
-            .then(() => {
-                downloadButton.textContent = 'Quick Download';
+
+        // Stage 1: Downloading (green)
+        setButtonState(downloadButton, 'Downloading...', '#4CAF50');
+
+        // Arm the interceptor before starting download
+        window.postMessage({ type: 'FIDELITY_EXT_START_CAPTURE' }, '*');
+
+        // Start capture listener before triggering download
+        const capturePromise = waitForCsvCapture(15000);
+
+        try {
+            // Trigger the download (unchanged)
+            await performQuickDownload();
+        } catch (err) {
+            console.error('[Fidelity Ext] Quick download failed:', err);
+            setButtonState(downloadButton, 'Failed - Retry', '#f44336');
+            downloadButton.disabled = false;
+            return;
+        }
+
+        // Stage 2: Wait for CSV capture, then upload
+        let csvText;
+        try {
+            csvText = await capturePromise;
+            console.log('[Fidelity Ext] CSV captured, length:', csvText.length);
+        } catch (err) {
+            console.warn('[Fidelity Ext] CSV capture failed:', err.message);
+            setButtonState(downloadButton, 'Downloaded (no upload)', '#FF9800');
+            setTimeout(() => {
+                setButtonState(downloadButton, 'Quick Download', '#4CAF50');
                 downloadButton.disabled = false;
-            })
-            .catch(err => {
-                console.error('Quick download failed:', err);
-                downloadButton.textContent = 'Failed - Retry';
-                downloadButton.disabled = false;
+            }, 3000);
+            return;
+        }
+
+        // Stage 3: Uploading (blue)
+        setButtonState(downloadButton, 'Uploading...', '#2196F3');
+
+        try {
+            const response = await chrome.runtime.sendMessage({
+                type: 'UPLOAD_CSV',
+                csvText: csvText
             });
+
+            if (response?.success) {
+                const snap = response.snapshot;
+                setButtonState(
+                    downloadButton,
+                    `Uploaded! ${snap.positions_count} pos, ${snap.accounts_count} accts`,
+                    '#4CAF50'
+                );
+                console.log('[Fidelity Ext] Upload successful:', snap);
+            } else {
+                console.error('[Fidelity Ext] Upload failed:', response?.error);
+                setButtonState(downloadButton, 'Upload Failed', '#f44336');
+            }
+        } catch (err) {
+            console.error('[Fidelity Ext] Upload error:', err);
+            setButtonState(downloadButton, 'Upload Failed', '#f44336');
+        }
+
+        setTimeout(() => {
+            setButtonState(downloadButton, 'Quick Download', '#4CAF50');
+            downloadButton.disabled = false;
+        }, 4000);
     });
 }
 
