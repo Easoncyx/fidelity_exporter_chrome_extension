@@ -28,6 +28,12 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
             .catch(err => sendResponse({ success: false, error: err.message }));
         return true;
     }
+    if (message.type === 'RENAME_POSITIONS_DOWNLOAD') {
+        handleRenamePositionsDownload()
+            .then(result => sendResponse(result))
+            .catch(err => sendResponse({ success: false, error: err.message }));
+        return true;
+    }
 });
 
 // Upload CSV text to backend API as multipart form data
@@ -161,4 +167,22 @@ async function handleMoveActivityDownload() {
     console.log('[Fidelity Ext] Move response:', data);
 
     return { success: true, moved: data.moved };
+}
+
+// Rename downloaded positions CSV to use today's local date
+async function handleRenamePositionsDownload() {
+    const renameUrl = `${API_BASE}/rename-download`;
+    console.log(`[Fidelity Ext] Renaming positions download via ${renameUrl}`);
+
+    const response = await fetch(renameUrl, { method: 'POST' });
+
+    if (!response.ok) {
+        const text = await response.text();
+        throw new Error(`API error ${response.status}: ${text}`);
+    }
+
+    const data = await response.json();
+    console.log('[Fidelity Ext] Rename response:', data);
+
+    return { success: true, renamed: data.renamed, from: data.from, to: data.to };
 }

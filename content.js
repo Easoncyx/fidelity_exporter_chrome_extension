@@ -101,6 +101,18 @@ async function doPositions(button) {
         return { success: false, error: 'upload_failed' };
     }
     console.log('[Fidelity Ext] Upload successful:', response.snapshot);
+
+    // Rename downloaded file to use today's local date (Fidelity may use a different timezone)
+    try {
+        const renameResponse = await chrome.runtime.sendMessage({ type: 'RENAME_POSITIONS_DOWNLOAD' });
+        if (renameResponse?.success && renameResponse.renamed) {
+            console.log(`[Fidelity Ext] Positions file renamed: ${renameResponse.from} → ${renameResponse.to}`);
+        }
+    } catch (err) {
+        // Non-fatal: upload already succeeded
+        console.warn('[Fidelity Ext] Positions file rename error:', err);
+    }
+
     return { success: true };
 }
 
@@ -156,6 +168,9 @@ async function doActivity(button) {
         return { success: false, error: 'upload_failed' };
     }
     console.log('[Fidelity Ext] Activity upload successful:', response.activity);
+
+    // Wait for browser to finish writing the file to disk before moving
+    await delay(2000);
 
     // Move downloaded file from portfolio_daily/ to fidelity_activity/{year}/
     setButtonState(button, 'Moving file...', '#00897B');
@@ -367,23 +382,19 @@ async function performQuickDownload() {
     if (positionsTab) {
         console.log('Clicking Positions tab...');
         positionsTab.click();
-        await delay(1500);
     } else {
         console.log('Positions tab not found or already on positions page');
     }
 
-    const viewDropdown = document.querySelector('select[aria-label="view"]');
-    if (viewDropdown) {
-        if (viewDropdown.value !== 'MyView') {
-            console.log('Changing view to My View...');
-            viewDropdown.value = 'MyView';
-            viewDropdown.dispatchEvent(new Event('change', { bubbles: true }));
-            await delay(1500);
-        } else {
-            console.log('My View already selected');
-        }
+    console.log('Waiting for view dropdown to load...');
+    const viewDropdown = await waitForElement('select[aria-label="view"]', 15000);
+    if (viewDropdown.value !== 'MyView') {
+        console.log('Changing view to My View...');
+        viewDropdown.value = 'MyView';
+        viewDropdown.dispatchEvent(new Event('change', { bubbles: true }));
+        await delay(1500);
     } else {
-        throw new Error('View dropdown not found');
+        console.log('My View already selected');
     }
 
     console.log('Opening menu...');

@@ -73,6 +73,7 @@ MV3 isolates MAIN world (page JS access) from ISOLATED world (chrome API access)
 - Handles `FETCH_ROBINHOOD` messages: POSTs to `/api/v1/snapshots/fetch-robinhood` with 150s timeout
 - Handles `UPLOAD_ACTIVITY_CSV` messages: POSTs CSV to `/api/v1/activities/upload-fidelity`
 - Handles `MOVE_ACTIVITY_DOWNLOAD` messages: POSTs to `/api/v1/activities/move-download` to relocate downloaded file
+- Handles `RENAME_POSITIONS_DOWNLOAD` messages: POSTs to `/api/v1/snapshots/rename-download` to fix timezone mismatch in filename
 - Positions filename: `Portfolio_Positions_Mon-DD-YYYY.csv`
 - Activity filename: `Accounts_History_Mon-DD-YYYY.csv`
 
@@ -87,6 +88,7 @@ MV3 isolates MAIN world (page JS access) from ISOLATED world (chrome API access)
 | `FETCH_ROBINHOOD` | content→background | Trigger Robinhood fetch via backend |
 | `UPLOAD_ACTIVITY_CSV` | content→background | Upload activity CSV to backend |
 | `MOVE_ACTIVITY_DOWNLOAD` | content→background | Move downloaded CSV to fidelity_activity/{year}/ |
+| `RENAME_POSITIONS_DOWNLOAD` | content→background | Rename positions CSV to use local date |
 
 ### Target Pages
 - `https://digital.fidelity.com/ftgw/digital/portfolio/positions`
@@ -97,11 +99,11 @@ MV3 isolates MAIN world (page JS access) from ISOLATED world (chrome API access)
 Automates Fidelity's native positions CSV download with this sequence:
 1. Click `.acct-selector__all-accounts-wrapper` (All Accounts)
 2. Click `a.new-tab__tab[href="ftgw/digital/portfolio/positions"]` (Positions tab)
-3. Set `select[aria-label="view"]` to `MyView` and dispatch change event
+3. Wait for `select[aria-label="view"]` to appear (up to 15s via MutationObserver), then set to `MyView` and dispatch change event
 4. Click `button:has([pvd-name="nav__overflow-vertical"])` (overflow menu)
 5. Click `#kebabmenuitem-download` (Download option)
 
-Uses `MutationObserver` to wait for dynamic menu elements.
+Uses `MutationObserver` (`waitForElement`) to wait for dynamically loaded elements (view dropdown, menu items).
 
 ### Activity Download Automation (`performActivityDownload()`)
 Automates Fidelity's activity CSV download with this sequence:
