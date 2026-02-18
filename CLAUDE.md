@@ -72,7 +72,7 @@ MV3 isolates MAIN world (page JS access) from ISOLATED world (chrome API access)
 - Handles `UPLOAD_CSV` messages: POSTs CSV to `/api/v1/snapshots/upload`
 - Handles `FETCH_ROBINHOOD` messages: POSTs to `/api/v1/snapshots/fetch-robinhood` with 150s timeout
 - Handles `UPLOAD_ACTIVITY_CSV` messages: POSTs CSV to `/api/v1/activities/upload-fidelity`
-- Handles `MOVE_ACTIVITY_DOWNLOAD` messages: POSTs to `/api/v1/activities/move-download` to relocate downloaded file
+- Handles `MOVE_ACTIVITY_DOWNLOAD` messages: POSTs to `/api/v1/activities/move-download` to clean up downloaded file from portfolio_daily/ (archival is now done during upload)
 - Handles `RENAME_POSITIONS_DOWNLOAD` messages: POSTs to `/api/v1/snapshots/rename-download` to fix timezone mismatch in filename
 - Positions filename: `Portfolio_Positions_Mon-DD-YYYY.csv`
 - Activity filename: `Accounts_History_Mon-DD-YYYY.csv`
@@ -87,7 +87,7 @@ MV3 isolates MAIN world (page JS access) from ISOLATED world (chrome API access)
 | `UPLOAD_CSV` | content→background | Upload positions CSV to backend |
 | `FETCH_ROBINHOOD` | content→background | Trigger Robinhood fetch via backend |
 | `UPLOAD_ACTIVITY_CSV` | content→background | Upload activity CSV to backend |
-| `MOVE_ACTIVITY_DOWNLOAD` | content→background | Move downloaded CSV to fidelity_activity/{year}/ |
+| `MOVE_ACTIVITY_DOWNLOAD` | content→background | Clean up downloaded CSV from portfolio_daily/ |
 | `RENAME_POSITIONS_DOWNLOAD` | content→background | Rename positions CSV to use local date |
 
 ### Target Pages
