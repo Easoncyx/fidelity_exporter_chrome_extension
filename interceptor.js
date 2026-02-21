@@ -29,52 +29,42 @@
         const url = originalCreateObjectURL.call(URL, obj);
 
         if (armed && obj instanceof Blob) {
-            armed = false; // One-shot: disarm after first capture
             console.log('[Fidelity Ext] Blob detected, reading content...');
 
             const reader = new FileReader();
             const currentType = captureType; // capture for closure
             reader.onload = () => {
+                if (!armed) return; // Already captured by a concurrent blob
                 const text = reader.result;
 
                 if (currentType === 'activity') {
                     // Validate activity CSV headers
                     if (text && text.includes('Run Date') && text.includes('Account Number') && text.includes('Action')) {
+                        armed = false; // Disarm only on successful capture
                         console.log('[Fidelity Ext] Activity CSV captured, relaying to content script...');
                         window.postMessage({
                             type: 'FIDELITY_EXT_ACTIVITY_CSV_CAPTURED',
                             csvText: text
                         }, '*');
                     } else {
-                        console.log('[Fidelity Ext] Blob is not a Fidelity activity CSV, ignoring');
-                        window.postMessage({
-                            type: 'FIDELITY_EXT_CSV_CAPTURE_FAILED',
-                            reason: 'not_activity_csv'
-                        }, '*');
+                        console.log('[Fidelity Ext] Blob is not a Fidelity activity CSV, staying armed...');
                     }
                 } else {
                     // Validate positions CSV headers
                     if (text && text.includes('Account Name') && text.includes('Symbol') && text.includes('Description')) {
+                        armed = false; // Disarm only on successful capture
                         console.log('[Fidelity Ext] CSV captured, relaying to content script...');
                         window.postMessage({
                             type: 'FIDELITY_EXT_CSV_CAPTURED',
                             csvText: text
                         }, '*');
                     } else {
-                        console.log('[Fidelity Ext] Blob is not a Fidelity CSV, ignoring');
-                        window.postMessage({
-                            type: 'FIDELITY_EXT_CSV_CAPTURE_FAILED',
-                            reason: 'not_csv'
-                        }, '*');
+                        console.log('[Fidelity Ext] Blob is not a Fidelity CSV, staying armed...');
                     }
                 }
             };
             reader.onerror = () => {
-                console.error('[Fidelity Ext] Failed to read blob');
-                window.postMessage({
-                    type: 'FIDELITY_EXT_CSV_CAPTURE_FAILED',
-                    reason: 'read_error'
-                }, '*');
+                console.warn('[Fidelity Ext] Failed to read blob, staying armed...');
             };
             reader.readAsText(obj);
         }

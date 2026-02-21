@@ -41,7 +41,7 @@ MV3 isolates MAIN world (page JS access) from ISOLATED world (chrome API access)
 - Supports two capture types:
   - `'positions'`: Validates `Account Name` + `Symbol` + `Description` headers, sends `FIDELITY_EXT_CSV_CAPTURED`
   - `'activity'`: Validates `Run Date` + `Account Number` + `Action` headers, sends `FIDELITY_EXT_ACTIVITY_CSV_CAPTURED`
-- One-shot: disarms after first capture
+- One-shot: disarms only after successful CSV capture (skips non-matching blobs)
 - Calls original `createObjectURL` synchronously so download always proceeds
 - Preserves `toString()` to avoid detection
 
@@ -74,8 +74,8 @@ MV3 isolates MAIN world (page JS access) from ISOLATED world (chrome API access)
 - Handles `UPLOAD_ACTIVITY_CSV` messages: POSTs CSV to `/api/v1/activities/upload-fidelity`
 - Handles `MOVE_ACTIVITY_DOWNLOAD` messages: POSTs to `/api/v1/activities/move-download` to clean up downloaded file from portfolio_daily/ (archival is now done during upload)
 - Handles `RENAME_POSITIONS_DOWNLOAD` messages: POSTs to `/api/v1/snapshots/rename-download` to fix timezone mismatch in filename
-- Positions filename: `Portfolio_Positions_Mon-DD-YYYY.csv`
-- Activity filename: `Accounts_History_Mon-DD-YYYY.csv`
+- Positions filename: `Portfolio_Positions_YYYY-MM-DD.csv`
+- Activity filename: `Accounts_History_YYYY-MM-DD.csv`
 
 ### Message Types
 | Message | Direction | Purpose |

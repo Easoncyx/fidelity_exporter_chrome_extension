@@ -114,12 +114,10 @@ async function handleFetchRobinhood() {
 // Upload activity CSV text to backend API
 async function handleActivityUpload(csvText) {
     const now = new Date();
-    const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
-                    'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-    const month = months[now.getMonth()];
-    const day = String(now.getDate()).padStart(2, '0');
     const year = now.getFullYear();
-    const filename = `Accounts_History_${month}-${day}-${year}.csv`;
+    const month = String(now.getMonth() + 1).padStart(2, '0');
+    const day = String(now.getDate()).padStart(2, '0');
+    const filename = `Accounts_History_${year}-${month}-${day}.csv`;
 
     const blob = new Blob([csvText], { type: 'text/csv' });
     const formData = new FormData();
