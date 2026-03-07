@@ -102,9 +102,14 @@ async function doPositions(button) {
     }
     console.log('[Fidelity Ext] Upload successful:', response.snapshot);
 
-    // Rename downloaded file to use today's local date (Fidelity may use a different timezone)
+    // Wait for browser to finish writing the file to disk before renaming
+    await delay(2000);
+
+    // Rename downloaded file to use today's local date (server may be in UTC)
     try {
-        const renameResponse = await chrome.runtime.sendMessage({ type: 'RENAME_POSITIONS_DOWNLOAD' });
+        const now = new Date();
+        const localDate = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+        const renameResponse = await chrome.runtime.sendMessage({ type: 'RENAME_POSITIONS_DOWNLOAD', localDate });
         if (renameResponse?.success && renameResponse.renamed) {
             console.log(`[Fidelity Ext] Positions file renamed: ${renameResponse.from} → ${renameResponse.to}`);
         }
@@ -175,7 +180,9 @@ async function doActivity(button) {
     // Move downloaded file from portfolio_daily/ to fidelity_activity/{year}/
     setButtonState(button, 'Moving file...', '#00897B');
     try {
-        const moveResponse = await chrome.runtime.sendMessage({ type: 'MOVE_ACTIVITY_DOWNLOAD' });
+        const now2 = new Date();
+        const localDate2 = `${now2.getFullYear()}-${String(now2.getMonth() + 1).padStart(2, '0')}-${String(now2.getDate()).padStart(2, '0')}`;
+        const moveResponse = await chrome.runtime.sendMessage({ type: 'MOVE_ACTIVITY_DOWNLOAD', localDate: localDate2 });
         if (moveResponse?.success) {
             console.log('[Fidelity Ext] Activity file moved:', moveResponse.moved);
         } else {

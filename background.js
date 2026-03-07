@@ -23,13 +23,13 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
         return true;
     }
     if (message.type === 'MOVE_ACTIVITY_DOWNLOAD') {
-        handleMoveActivityDownload()
+        handleMoveActivityDownload(message.localDate)
             .then(result => sendResponse(result))
             .catch(err => sendResponse({ success: false, error: err.message }));
         return true;
     }
     if (message.type === 'RENAME_POSITIONS_DOWNLOAD') {
-        handleRenamePositionsDownload()
+        handleRenamePositionsDownload(message.localDate)
             .then(result => sendResponse(result))
             .catch(err => sendResponse({ success: false, error: err.message }));
         return true;
@@ -39,12 +39,10 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 // Upload CSV text to backend API as multipart form data
 async function handleUpload(csvText) {
     const now = new Date();
-    const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
-                    'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-    const month = months[now.getMonth()];
-    const day = String(now.getDate()).padStart(2, '0');
     const year = now.getFullYear();
-    const filename = `Portfolio_Positions_${month}-${day}-${year}.csv`;
+    const month = String(now.getMonth() + 1).padStart(2, '0');
+    const day = String(now.getDate()).padStart(2, '0');
+    const filename = `Portfolio_Positions_${year}-${month}-${day}.csv`;
 
     const blob = new Blob([csvText], { type: 'text/csv' });
     const formData = new FormData();
@@ -150,8 +148,9 @@ async function handleActivityUpload(csvText) {
 }
 
 // Move downloaded activity CSV from portfolio_daily/ to fidelity_activity/{year}/
-async function handleMoveActivityDownload() {
-    const moveUrl = `${ACTIVITY_API_BASE}/move-download`;
+async function handleMoveActivityDownload(localDate) {
+    const params = localDate ? `?local_date=${localDate}` : '';
+    const moveUrl = `${ACTIVITY_API_BASE}/move-download${params}`;
     console.log(`[Fidelity Ext] Moving activity download via ${moveUrl}`);
 
     const response = await fetch(moveUrl, { method: 'POST' });
@@ -168,8 +167,9 @@ async function handleMoveActivityDownload() {
 }
 
 // Rename downloaded positions CSV to use today's local date
-async function handleRenamePositionsDownload() {
-    const renameUrl = `${API_BASE}/rename-download`;
+async function handleRenamePositionsDownload(localDate) {
+    const params = localDate ? `?local_date=${localDate}` : '';
+    const renameUrl = `${API_BASE}/rename-download${params}`;
     console.log(`[Fidelity Ext] Renaming positions download via ${renameUrl}`);
 
     const response = await fetch(renameUrl, { method: 'POST' });
